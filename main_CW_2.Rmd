@@ -1,0 +1,435 @@
+---
+title: "IDAV_coursework_2"
+author: '36335776'
+date: "2023-04-07"
+output: pdf_document
+---
+# Libraries
+```{r}
+library(tidyr)
+library(caret)
+library(pROC)
+library(naniar)
+
+library(plotly)
+library(naniar)
+library(plotly)
+library(skimr)
+library(GGally)
+library(corrplot)
+library(stats)
+library(dplyr)
+library(ggplot2)
+library(Information)
+```
+
+# Loading dataset
+```{r,echo=FALSE}
+
+data <- read.csv("airlinesData36.csv")
+
+```
+
+# Converting 0 to Na for missing values
+```{r,echo=FALSE}
+data[,c("Inflight.entertainment",
+        "Inflight.wifi.service",
+        "Inflight.service",
+        "Food.and.drink",
+        "Seat.comfort",
+        "On.board.service",
+        "Leg.room.service",
+        "Checkin.service",
+        "Cleanliness",
+        "Departure.Arrival.time.convenient",
+        "Ease.of.Online.booking",
+        "Gate.location",
+        "Online.boarding",
+        "Baggage.handling")][data[,c("Inflight.entertainment",
+                "Inflight.wifi.service",
+                "Inflight.service",
+                "Food.and.drink",
+                "Seat.comfort",
+                "On.board.service",
+                "Leg.room.service",
+                "Checkin.service",
+                "Cleanliness",
+                "Departure.Arrival.time.convenient",
+                "Ease.of.Online.booking",
+                "Gate.location",
+                "Online.boarding",
+                "Baggage.handling")]==0] <- NA
+```
+
+
+# Factorizing the categorical variables which are already encoded:
+```{r,echo=FALSE}
+data$Inflight.wifi.service <- factor(data$Inflight.wifi.service,order=TRUE)
+data$Inflight.entertainment <- factor(data$Inflight.entertainment,order=TRUE)
+data$Inflight.service <- factor(data$Inflight.service,order=TRUE)
+data$Food.and.drink <- factor(data$Food.and.drink,order=TRUE)
+data$Seat.comfort <- factor(data$Seat.comfort,order=TRUE)
+data$On.board.service <- factor(data$On.board.service,order=TRUE)
+data$Leg.room.service <- factor(data$Leg.room.service,order=TRUE)
+data$Checkin.service <- factor(data$Checkin.service,order=TRUE)
+data$Cleanliness <- factor(data$Cleanliness,order=TRUE)
+data$Departure.Arrival.time.convenient <- factor(data$Departure.Arrival.time.convenient,order=TRUE)
+data$Ease.of.Online.booking <- factor(data$Ease.of.Online.booking,order=TRUE)
+data$Gate.location <- factor(data$Gate.location,order=TRUE)
+data$Online.boarding <- factor(data$Online.boarding,order=TRUE)
+data$Baggage.handling <- factor(data$Baggage.handling,order=TRUE)
+```
+
+# Encoding and Factorizing the remaining categorical variables:
+```{r,echo=FALSE}
+
+data[, c('Gender', 'Customer.Type' , 'Type.of.Travel','Class','satisfaction')] <- sapply(data[, c('Gender', 'Customer.Type' ,'Type.of.Travel','Class','satisfaction')], unclass)
+
+data$Gender <- factor(data$Gender)
+data$Customer.Type <- factor(data$Customer.Type)
+data$Type.of.Travel <- factor(data$Type.of.Travel)
+data$Class <- factor(data$Class)
+data$satisfaction <- factor(data$satisfaction)
+
+```
+
+```{r,echo=FALSE}
+numX <- data %>% select(Age, Flight.Distance, Departure.Delay.in.Minutes,	Arrival.Delay.in.Minutes)
+
+# Calculate the Z-scores for each column in the dataset
+z_scores <- apply(numX, 2, function(x) (x - mean(x)) / sd(x))
+
+# Identify the outliers based on the Z-scores
+outliers <- which(abs(z_scores) > 2, arr.ind = TRUE)
+
+# Remove the outliers from the dataset
+data <- data[-outliers[,1], ]
+
+
+
+```
+
+```{r}
+calc_mode <- function(x){
+  
+  # List the distinct / unique values
+  distinct_values <- unique(x)
+  
+  # Count the occurrence of each distinct value
+  distinct_tabulate <- tabulate(match(x, distinct_values))
+  
+  # Return the value with the highest occurrence
+  distinct_values[which.max(distinct_tabulate)]
+}
+
+
+data <- mutate(data, Inflight.wifi.service = if_else(is.na(Inflight.wifi.service), 
+                         calc_mode(Inflight.wifi.service),Inflight.wifi.service))
+
+data <- mutate(data,Departure.Arrival.time.convenient = if_else(is.na(Departure.Arrival.time.convenient), 
+                         calc_mode(Departure.Arrival.time.convenient),Departure.Arrival.time.convenient))
+
+data <- mutate(data,Ease.of.Online.booking = if_else(is.na(Ease.of.Online.booking), 
+                         calc_mode(Ease.of.Online.booking),Ease.of.Online.booking))
+
+data <- mutate(data,Food.and.drink = if_else(is.na(Food.and.drink), 
+                         calc_mode(Food.and.drink),Food.and.drink))
+
+data <- mutate(data,Online.boarding = if_else(is.na(Online.boarding), 
+                         calc_mode(Online.boarding),Online.boarding))
+
+data <- mutate(data,Inflight.entertainment = if_else(is.na(Inflight.entertainment), 
+                         calc_mode(Inflight.entertainment),Inflight.entertainment))
+
+data <- mutate(data,On.board.service  = if_else(is.na(On.board.service ), 
+                         calc_mode(On.board.service ),On.board.service ))
+
+data <- mutate(data,Leg.room.service = if_else(is.na(Leg.room.service), 
+                         calc_mode(Leg.room.service),Leg.room.service))
+
+data <- mutate(data,Inflight.service = if_else(is.na(Inflight.service), 
+                         calc_mode(Inflight.service),Inflight.service))
+
+data <- mutate(data,Cleanliness = if_else(is.na(Cleanliness), 
+                         calc_mode(Cleanliness),Cleanliness))
+
+data$Arrival.Delay.in.Minutes <- ifelse(is.na(data$Arrival.Delay.in.Minutes), data$Departure.Delay.in.Minutes, data$Arrival.Delay.in.Minutes)
+
+
+```
+
+```{r}
+gg_miss_var(data )
+```
+
+
+```{r}
+boxplot(data)
+
+sum(is.na(data))
+
+
+```
+
+
+
+
+```{r}
+# create a simple random sample of 70% of the data for the training set
+split <- initial_split(data, prop = 0.8, strata = "satisfaction")
+
+# extract the training and testing sets from the split object
+train <- training(split)
+test <- testing(split)
+
+# view the dimensions of the datasets
+dim(train)  # 70% of the data
+dim(test)   # 30% of the data
+```
+
+# SVM
+
+```{r}
+library(e1071)
+
+```
+
+
+```{r}
+
+# Set up cross-validation
+ctrl <- trainControl(method = "cv", number = 5)
+
+# Train SVM model
+svm_model <- train(satisfaction ~ ., data = train, method = "svmRadial",trControl = ctrl)
+
+
+```
+
+```{r}
+svm_model$bestTune
+
+plot(varImp(svm_model))
+
+plot(svm_model)
+```
+
+```{r}
+
+svmfit_rb_best = svm(train$satisfaction ~ ., data = train, kernel = "radial",nu=0.2,sigma=0.008291819,cost=1,cross=5)
+
+
+
+pred_svm_best <- predict(svmfit_rb_best, test)
+
+
+```
+
+```{r}
+# Make predictions on test data
+
+predictor_svm <- as.numeric(pred_svm_best == levels(pred_svm_best)[2])
+
+roc_svm <- roc(test$satisfaction, predictor, levels =  rev(levels(test$satisfaction)))
+
+auc_svm <- auc(roc_svm)
+
+# Print confusion matrix
+confustionMatrix_svm <- confusionMatrix(pred_svm_best, test$satisfaction)
+
+
+# Create a data frame to store the evaluation metrics
+all_model <- data.frame(AUC = auc_svm,
+                        Sensitivity = confustionMatrix_svm$byClass["Sensitivity"],
+                        Accuracy = confustionMatrix_svm$overall["Accuracy"],
+                        F1_score = confustionMatrix_svm$byClass["F1"])
+
+# Print the data frame
+print(all_model)
+
+```
+
+```{r}
+confustionMatrix_svm
+```
+
+
+# XGB
+
+```{r}
+# Set up cross-validation
+ctrl <- trainControl(method = "cv", number = 5)
+
+# Train XGBoost model
+xgb_model <- train(satisfaction ~ ., data = train, method = "xgbTree", trControl = ctrl)
+
+```
+
+
+```{r}
+xgb_model$bestTune
+
+varImp(xgb_model)
+
+plot(xgb_model)
+```
+
+
+```{r}
+## Final XGB
+
+train_xgb <- train
+train_xgb <- data.frame(lapply(train_xgb, as.numeric))
+
+train_xgb$satisfaction <- ifelse(train_xgb$satisfaction == 1, 0, 1)
+
+test_xgb <- test
+test_xgb <- data.frame(lapply(test_xgb, as.numeric))
+
+test_xgb$satisfaction <- ifelse(test_xgb$satisfaction == 1, 0, 1)
+
+#test_xgb <- factor(test_xgb, levels = levels(test_xgb$satisfaction))
+
+x_train <- train_xgb[1:22]
+y_train <- train_xgb[23]
+
+x_test <- test_xgb[1:22]
+y_test <- test_xgb[23]
+
+xgb_model <- xgboost(data = as.matrix(x_train), 
+                     label = y_train$satisfaction, 
+                     nrounds = 150, max_depth = 3, eta = 0.4, gamma = 0, colsample_bytree = 0.8, min_child_weight = 1, subsample = 1, objective = "binary:logistic")
+
+# Predict on test set
+xgb_pred <- predict(xgb_model, as.matrix(x_test))
+
+xgb_pred <- if_else(xgb_pred > 0.5, "1", "0")
+
+xgb_pred <- as.factor(xgb_pred)
+test_labels <- as.factor(y_test$satisfaction)
+confusion_matrix_xgb <- confusionMatrix(xgb_pred, test_labels)
+
+```
+
+```{r}
+confusion_matrix_xgb
+imp <- xgb.importance(feature_names = colnames(x_train), model = xgb_model)
+xgb.plot.importance(importance_matrix=imp)
+```
+
+```{r}
+
+# Make predictions on test data
+
+predictor_xgb <- as.numeric(xgb_pred == levels(xgb_pred)[2])
+
+roc_xgb<- roc(test$satisfaction, predictor_xgb, levels =  rev(levels(test$satisfaction)))
+
+auc_xgb <- auc(roc_xgb)
+
+# Print confusion matrix
+confusion_matrix_xgb
+
+new_row <-data.frame(AUC = auc_xgb,
+                     Sensitivity = confusion_matrix_xgb$byClass["Sensitivity"],
+                     Accuracy = confusion_matrix_xgb$overall["Accuracy"],
+                     F1_score = confusion_matrix_xgb$byClass["F1"])
+all_model <- rbind(all_model, new_row)
+
+```
+
+
+
+
+
+# Random Forest:
+```{r}
+# Set up cross-validation
+ctrl <- trainControl(method = "cv", number = 5)
+
+# Train Random Forest model
+rf_model <- train(satisfaction ~ ., data = train, method = "rf", trControl = ctrl)
+
+```
+
+```{r}
+rf_model$bestTune
+
+varImp(rf_model)
+
+plot(rf_model)
+```
+```{r}
+# Train the model
+rf_model <- randomForest(satisfaction ~ ., data = train, ntree = 500, mtry = 33)
+
+# Make predictions on the test set
+predictions_rf <- predict(rf_model, newdata = test)
+
+# Print the confusion matrix
+confusion_matrix_rf <- confusionMatrix(predictions_rf, test$satisfaction)
+
+# Get variable importance measures
+varImp(rf_model)
+
+# Plot variable importance measures
+varImpPlot(rf_model)
+```
+
+```{r}
+# Make predictions on test data
+
+predictor_rf<- as.numeric(predictions_rf == levels(predictions_rf)[2])
+
+roc_rf<- roc(test$satisfaction, predictor_rf, levels =  rev(levels(test$satisfaction)))
+
+auc_rf <- auc(roc_rf)
+
+# Print confusion matrix
+confusion_matrix_rf
+
+new_row <-data.frame(AUC = auc_rf,
+                     Sensitivity = confusion_matrix_rf$byClass["Sensitivity"],
+                     Accuracy = confusion_matrix_rf$overall["Accuracy"],
+                     F1_score = confusion_matrix_rf$byClass["F1"])
+all_model <- rbind(all_model, new_row)
+
+```
+
+
+```{r}
+rownames(all_model) <- c("SVM", "XGB", "Random_Forst")
+
+```
+
+```{r}
+library(caret)
+
+# Set up cross-validation
+ctrl <- trainControl(method = "cv", number = 5)
+
+# Train Adaboost model
+
+# Train Bagging model
+bagging_model <- train(satisfaction ~ ., data = train, method = "treebag", trControl = ctrl)
+
+```
+
+
+
+```{r}
+
+varImp(bagging_model)
+
+# Make predictions on the test set
+predictions_bag <- predict(bagging_model, newdata = test)
+
+# Print the confusion matrix
+confusion_matrix_bag <- confusionMatrix(predictions_bag, test$satisfaction)
+
+confusion_matrix_bag
+```
+
+
+
+
